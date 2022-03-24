@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "type_traits": "c",
+        "stdio.h": "c",
+        "libserialport.h": "c",
+        "termios.h": "c",
+        "types.h": "c",
+        "fcntl.h": "c",
+        "termios-c_cflag.h": "c",
+        "rwserial.h": "c",
+        "hl7692-driver.h": "c"
+    }
+}
