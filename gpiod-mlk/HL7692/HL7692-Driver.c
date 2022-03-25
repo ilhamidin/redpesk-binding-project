@@ -5,7 +5,7 @@
 #define NOK 0;
 
 static const char devSerialPath[] = "/dev/ttyAMA0";
-static const unsigned int RECEIVE_BUFFER_MAX_LEN  = 257;
+static const unsigned int RECEIVE_BUFFER_MAX_LEN = 257;
 
 static const char CMD_LED_ON[] = "AT+KGPIO=8,1\r\n";
 static const char CMD_LED_OFF[] = "AT+KGPIO=8,0\r\n";
@@ -33,12 +33,10 @@ char receiveBuffer[RECEIVE_BUFFER_MAX_LEN];
 serialCommandData commandData;
 serialOperationStatus operationStatus;
 
-
 /* declare private function */
 int preConfigBeforeConnect();
 int configBeforeConnect();
-serialOperationStatus initializeAndSendCommand(const char *commandBuffer, unsigned int startOffset, unsigned int commandLength);
-
+serialOperationStatus initializeAndSendCommand(const char* commandBuffer, unsigned int startOffset, unsigned int commandLength);
 
 /* Accessible Function */
 
@@ -52,14 +50,14 @@ int initHL7692() {
     /* send basic command */
     operationStatus = initializeAndSendCommand(CMD_AT_BASIC, 0, sizeofCmd(CMD_AT_BASIC));
     /* filter the ret value */
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
     /* send command echo off */
     operationStatus = initializeAndSendCommand(CMD_ECHO_OFF, 0, sizeofCmd(CMD_ECHO_OFF));
     /* filter the ret value */
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
@@ -68,7 +66,7 @@ int initHL7692() {
 
 int turnOnLed() {
     operationStatus = initializeAndSendCommand(CMD_LED_ON, 0, sizeofCmd(CMD_LED_ON));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
@@ -77,7 +75,7 @@ int turnOnLed() {
 
 int turnOffLed() {
     operationStatus = initializeAndSendCommand(CMD_LED_OFF, 0, sizeofCmd(CMD_LED_OFF));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
@@ -120,7 +118,7 @@ int configureNetwork() {
 
 int connect() {
     operationStatus = initializeAndSendCommand(CMD_START_IP_SESSION, 0, sizeofCmd(CMD_START_IP_SESSION));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
@@ -129,10 +127,43 @@ int connect() {
 
 int disconnect() {
     operationStatus = initializeAndSendCommand(CMD_STOP_IP_SESSION, 0, sizeofCmd(CMD_STOP_IP_SESSION));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
+    return 0;
+}
+
+int sendRecvApdu(int sessionId, const char* pDataSend, char** ppDataReceived) {
+    /* filter if data send and data received null */
+    // if(pDataSend == NULL || ppDataReceived == NULL){
+    //     return ;
+    // }
+    /* reset received variable char array */
+    memset(receiveBuffer, 0, RECEIVE_BUFFER_MAX_LEN);
+
+    /*  */
+    int len = snprintf(NULL, 0, "AT+CGLA=%d,%ld,\"%s\"\r\n", sessionId, strlen(pDataSend), pDataSend);
+    char* buf = malloc(len + 1);
+    snprintf(buf, len + 1, "AT+CGLA=%d,%ld,\"%s\"\r\n", sessionId, strlen(pDataSend), pDataSend);
+
+    /* start send */
+    operationStatus = initializeAndSendCommand(buf, 0, strlen(buf));
+    if (!operationStatus.operationIsSuccess) {
+        /* free malloc */
+        free(buf);
+        buf = NULL;
+        return operationStatus.errorCode;
+    }
+
+    /* free malloc */
+    free(buf);
+    buf = NULL;
+
+    /* */
+    char* pReceiveBuffer = &receiveBuffer[0];
+    char* pDataReceived = strdup(pReceiveBuffer);
+    *ppDataReceived = pDataReceived;
     return 0;
 }
 
@@ -140,22 +171,22 @@ int disconnect() {
 
 /* This function is to
     1. activate left LED in modem for network status
-    2. change USB connection to ETH connection (device known as "eth1")
+    2. change USB connection to ETH connection (device known as "wwan0")
     3. reboot the module, in order step 2 to take effect
 */
 int preConfigBeforeConnect() {
     operationStatus = initializeAndSendCommand(CMD_LED_NETWORK_ON, 0, sizeofCmd(CMD_LED_NETWORK_ON));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
     operationStatus = initializeAndSendCommand(CMD_USB_TO_ETH, 0, sizeofCmd(CMD_USB_TO_ETH));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
     operationStatus = initializeAndSendCommand(CMD_REBOOT, 0, sizeofCmd(CMD_REBOOT));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
@@ -168,23 +199,22 @@ int preConfigBeforeConnect() {
 */
 int configBeforeConnect() {
     operationStatus = initializeAndSendCommand(CMD_SET_APN, 0, sizeofCmd(CMD_SET_APN));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
     operationStatus = initializeAndSendCommand(CMD_SET_DYNAMIC_DNS_REQ, 0, sizeofCmd(CMD_SET_DYNAMIC_DNS_REQ));
-    if (! operationStatus.operationIsSuccess) {
+    if (!operationStatus.operationIsSuccess) {
         return operationStatus.errorCode;
     }
 
     return 0;
 }
 
-serialOperationStatus initializeAndSendCommand(const char *commandBuffer, unsigned int startOffset, unsigned int commandLength){
+serialOperationStatus initializeAndSendCommand(const char* commandBuffer, unsigned int startOffset, unsigned int commandLength) {
     commandData.commandBuffer = commandBuffer;
     commandData.startOffset = startOffset;
     commandData.commandLength = commandLength;
     commandData.maxExpectedRespSize = RECEIVE_BUFFER_MAX_LEN;
     return (sendAndReceive(devSerialPath, &commandData, receiveBuffer));
 }
-

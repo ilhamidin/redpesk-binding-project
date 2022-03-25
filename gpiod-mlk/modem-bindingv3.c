@@ -12,10 +12,9 @@
 
 /*
     Required file:
-    1. Serial Port library by sigrok ([DOC] = https://sigrok.org/wiki/Libserialport) ([GIT Repo] = git clone git://sigrok.org/libserialport)
-        installed in system
-    1. simplified-serial-lib.c
-    2. simplified-serial-lib.h
+    1. rwserial.c and rwserial.h
+    2. rwgpio.c and rwgpio.h
+    3. HL7692-Driver.c and HL7692-Driver.h
     Compile syntax
     $ gcc -fPIC -shared modem-bindingv3.c HL7692/HL7692-Driver.c rwserial/rwserial.c rwgpio/rwgpio.c -o modem-bindingv3.so -Irwserial -Irwgpio $(pkg-config --cflags-only-I --libs afb-binding)
     Start Binder
@@ -166,6 +165,34 @@ void disconnectModem(afb_req_t req) {
         afb_req_success_f(req, NULL, "disconnect modem OK");
 }
 
+void sendApduModem(afb_req_t req) {
+    json_object *args, *pSessionId, *pSendCmd;
+    char *pUsr;
+
+    args = afb_req_json(req);
+    pUsr = afb_req_context_get(req);
+    if (!json_object_object_get_ex(args, "session-id", &pSessionId) || !json_object_object_get_ex(args, "send-apdu", &pSendCmd)) {
+        AFB_REQ_ERROR(req, "login, bad request: %s", json_object_get_string(args));
+        afb_req_reply(req, NULL, "bad-request, please try {\"session-id\":\"0/1/2/3\",\"send-apdu\":\"your_apdu_command\"}", NULL);
+    } else {
+        /* get json data */
+        int buf1 = json_object_get_int(pSessionId);
+        char *pDataRecv = NULL;
+        char *pBuf1 = strdup(json_object_get_string(pSendCmd));
+
+        /* main function */
+        int ret = sendRecvApdu(buf1, pBuf1, &pDataRecv);
+        if (ret != 0) {
+            afb_req_fail_f(req, "ERROR", "disconnect failed with return code = %d", ret);
+        } else {
+            afb_req_success_f(req, NULL, "%d char data received: %s", strlen(pDataRecv), pDataRecv);
+        }
+        afb_req_context_set(req, pBuf1, free);
+        free(pDataRecv);
+        pDataRecv = NULL;
+    }
+}
+
 /* Pre-init */
 int preinit(afb_api_t api) {
     AFB_API_NOTICE(api, "preinit");
@@ -190,6 +217,7 @@ const afb_verb_t verbs[] = {
     {.verb = "configureModem", .callback = configModem},
     {.verb = "connectModem", .callback = connectModem},
     {.verb = "disconnectModem", .callback = disconnectModem},
+    {.verb = "sendApduModem", .callback = sendApduModem},
     {.verb = "login", .callback = login},
     {.verb = "action", .callback = action, .session = AFB_SESSION_LOA_1},
     {.verb = "logout", .callback = logout, .session = AFB_SESSION_LOA_1},

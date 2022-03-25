@@ -21,4 +21,6 @@ extern int connect();
 
 extern int disconnect();
 
+extern int sendRecvApdu(int sessionId, const char* pDataSend, char** ppDataReceived);
+
 #endif  // _HL7692_DRIVER_H_
